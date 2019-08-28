@@ -33,7 +33,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <WinSock2.h>
-
+#include "sharememory.h"
 #pragma comment(lib, "wsock32.lib")
 #pragma warning(disable : 4267)
 
@@ -41,6 +41,28 @@
 #define SERVER_STRING "Server: tinyhttp /0.1.0\r\n"
 // -------------------------------------------------------------------------
 
+struct SharedData
+{
+	int a;
+	int b;
+	float c;
+	SharedData(int x, int y, float z)
+	{
+		a = x;
+		b = y;
+		c = z;
+	}
+};
+
+struct STSHAREMEMORYCONTROL stover = {
+  _sharememory_error_null_,	//enum        ENUMSHAREMEMORY_ERROR  enAppError;
+  _sharememory_error_null_,	//DWORD nErrno;
+  NULL,				//HANDLE hMapFile;
+  _T("Global\\MyFileMappingObj"),	//TCHAR szName[256];
+  sizeof(struct SharedData),	// unsigned int              iBUF_SIZE;
+  NULL,				//char  *pSd;      
+};
+struct STSHAREMEMORYCONTROL *stsharememoryp = &stover;
 // -------------------------------------------------------------------------
 // 类名		: CTinyHttp
 // 功能		: 
@@ -511,6 +533,8 @@ int _tmain(int argc, _TCHAR* argv[])
 	server_sock = tinyHttpSvr.startup(&port);
 	printf("httpd running on port: %d\n", port);
 	CMultiTaskThreadPool m_threadpool(&tinyHttpSvr, &CTinyHttp::accept_request);
+
+	stsharemem_init_App(stsharememoryp);
 
 	while (1)
 	{
