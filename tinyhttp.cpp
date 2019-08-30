@@ -569,7 +569,7 @@ int _tmain(int argc, _TCHAR* argv[])
 	SOCKET sClient;
 	int retVal;
 	char buf[BUF_SIZE];
-
+	a1:
 	//初始化Socket
 	if (WSAStartup(MAKEWORD(2, 2), &wsd) != 0)
 	{
@@ -643,9 +643,28 @@ int _tmain(int argc, _TCHAR* argv[])
 		break;
 
 	}
+	if (_sharememory_returnstate_Succ_ == stsharemem_init_App(stsharememoryp))
+	{
+		stSharedData_init((struct SharedData *)stsharememoryp->pSd);
+	}
+	else
+	{
+		printf("recv failed!\n");
+		closesocket(sServer);
+		closesocket(sClient);
+		WSACleanup();
+		return -1;
+		return 0;
+	}
+
+
 	//循环接受客户端的数据，直到客户端发送quit命令后退出
 	while (true)
 	{
+		struct STFIFORING *stin = &(((struct SharedData *)(stsharememoryp->pSd))->STPORTA);
+		struct STFIFORING *stout = &(((struct SharedData *)(stsharememoryp->pSd))->STPORTB);
+
+
 		ZeroMemory(buf, BUF_SIZE);
 		retVal = recv(sClient, buf, BUFSIZ, 0);
 		if (SOCKET_ERROR == retVal)
@@ -665,6 +684,22 @@ int _tmain(int argc, _TCHAR* argv[])
 				return -1;
 			}
 		}
+		if (0 == retVal)
+		{
+			closesocket(sServer);
+			closesocket(sClient);
+			WSACleanup();
+			goto a1;
+		}
+		if (retVal > 0)
+		{
+			int i;
+			for (i = 0; i < retVal; i++)
+				Fiforing_push(stin, buf[i]);
+		}
+	
+	
+
 		//获取系统时间
 		SYSTEMTIME st;
 		GetLocalTime(&st);
@@ -673,7 +708,7 @@ int _tmain(int argc, _TCHAR* argv[])
 		//打印输出信息
 		printf("%s,Recv From Client [%s:%d]:%s\n", sDateTime, inet_ntoa(addrClient.sin_addr), addrClient.sin_port, buf);
 		//如果客户端发送“quit”字符串，则服务器退出
-		if (strcmp(buf, "quit") == 0)
+		if  ( 0 && (strcmp(buf, "quit") == 0))
 		{
 			retVal = send(sClient, "quit", strlen("quit"), 0);
 			break;
@@ -681,10 +716,15 @@ int _tmain(int argc, _TCHAR* argv[])
 		else
 		{
 			char msg[BUF_SIZE];
-			sprintf_s(msg, "Message received - %s", buf);
+		//	sprintf_s(msg, "Message received - %s", buf);
+			
 			while (true)
 			{
-				retVal = send(sClient, msg, strlen(msg), 0);
+				if (_fiforing_normal_ == Fiforing_poll(stout, msg))
+					retVal = send(sClient, msg, 1, 0);
+				else
+					retVal = SOCKET_ERROR + 1;
+				//retVal = send(sClient, msg, strlen(msg), 0);
 				if (SOCKET_ERROR == retVal)
 				{
 					int err = WSAGetLastError();
