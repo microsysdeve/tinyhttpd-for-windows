@@ -34,6 +34,8 @@
 #include <sys/types.h>
 #include <WinSock2.h>
 #include "sharememory.h"
+
+#include "ringq.h"
 #pragma comment(lib, "wsock32.lib")
 #pragma warning(disable : 4267)
 
@@ -43,16 +45,21 @@
 
 struct SharedData
 {
-	int a;
-	int b;
-	float c;
-	SharedData(int x, int y, float z)
-	{
-		a = x;
-		b = y;
-		c = z;
-	}
+	int			PORTA;
+	int			PORTB;
+	struct STFIFORING  STPORTA;
+	struct STFIFORING  STPORTB;
+	char		sPORTAIN[256];
+	char		sPORTBIN[256];
 };
+
+void stSharedData_init(struct SharedData *stp)
+{
+	
+		Fiforing_init(&(stp->STPORTA), stp->sPORTAIN, sizeof(stp->sPORTAIN));
+		Fiforing_init(&(stp->STPORTB), stp->sPORTBIN, sizeof(stp->sPORTBIN));
+
+}
 
 struct STSHAREMEMORYCONTROL stover = {
   _sharememory_error_null_,	//enum        ENUMSHAREMEMORY_ERROR  enAppError;
@@ -102,7 +109,8 @@ void accept_request(nilstruct&, SOCKET_CONTEXT& socket_context)
 	char* query_string = NULL;
 	SOCKET client = socket_context.socket_Client;
 
-	numchars = get_line(client, buf, sizeof(buf));
+
+	numchars = get_li111ne(client, buf, sizeof(buf));
 
 	// 获取HTTP的请求方法名
 	while (j < numchars && !ISspace(buf[j]) && (i < sizeof(method) - 1))
@@ -213,6 +221,10 @@ void execute_cgi(SOCKET client, const char *path, const char* method, const char
 	int numchars = 1;
 	int content_length = -1;
 
+	 
+
+
+
 	buf[0] = 'A'; buf[1] = '\0';
 	if (_stricmp(method, "GET") == 0)
 	{
@@ -311,11 +323,44 @@ void error_die(const char *sc)
  *             the size of the buffer
  * Returns: the number of bytes stored (excluding null) */
 /**********************************************************************/
+int get_li111ne(SOCKET sock, char *buf, int size)
+{
+	int i = 0;
+	char c = '\0';
+	int n;
+	struct STFIFORING *stin = &(((struct SharedData *)(stsharememoryp->pSd))->STPORTA);
+	struct STFIFORING *stout = &(((struct SharedData *)(stsharememoryp->pSd))->STPORTB);
+
+
+		while (1)
+		{
+			n = recv(sock, &c, 1, 0);
+			if (n > 0)
+			{
+				n = recv(sock, &c, 1, MSG_PEEK);
+				if (SOCKET_ERROR == n)
+				{
+				}else
+
+				if (n > 0)
+					Fiforing_push(stin, c);
+			}
+			if (_fiforing_normal_ ==  Fiforing_poll(stout, &c))
+						send(sock, &c, 1, 0);
+				
+		
+		}
+	
+}
+
+
 int get_line(SOCKET sock, char *buf, int size)
 {
 	int i = 0;
 	char c = '\0';
 	int n;
+
+ 
 
 	while ((i < size - 1) && (c != '\n'))
 	{
@@ -534,7 +579,17 @@ int _tmain(int argc, _TCHAR* argv[])
 	printf("httpd running on port: %d\n", port);
 	CMultiTaskThreadPool m_threadpool(&tinyHttpSvr, &CTinyHttp::accept_request);
 
-	stsharemem_init_App(stsharememoryp);
+	if ( _sharememory_returnstate_Succ_ == stsharemem_init_App(stsharememoryp))
+	{
+	stSharedData_init((struct SharedData *)stsharememoryp->pSd);
+	}
+	else
+	{
+		closesocket(server_sock);
+		WSACleanup();
+		return 0;
+	}
+
 
 	while (1)
 	{
