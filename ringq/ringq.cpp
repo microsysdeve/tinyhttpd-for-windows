@@ -5,16 +5,25 @@
 #include "ringq.h"
 //#include "stm32f1xx_hal.h"
 
+extern char *sFifoWorkp;
+
+int
+Fiforing_datap_init(struct STFIFORING *p_queue, char *sbuf, int buflen)
+{
+	p_queue->size = buflen;
+	p_queue->space = sbuf;
+	return 0;
+}
+
 int
 Fiforing_init (struct STFIFORING *p_queue, char *sbuf, int buflen)
 {
 
-  p_queue->size = buflen;
-  p_queue->space = sbuf;
+  Fiforing_datap_init(p_queue,sbuf,buflen);
   p_queue->head = 0;
   p_queue->tail = 0;
   p_queue->tag = _fiforing_empty_;
-
+  p_queue->Lock = 0;
   return 0;
 }
 int
@@ -25,16 +34,16 @@ Ffiforing_free (struct STFIFORING *p_queue)
 
  /*入列 */
 int				// 中断态执行
-Fiforing_push (struct STFIFORING *p_queue, char cData)
+Fiforing_push_io (struct STFIFORING *p_queue, char cData)
 {
   print_ringq (p_queue);
-
+  
   if (_Fiforing_is_full (p_queue))
     {
       debug_printf ("ringq is full\n");
       return -1;
     }
-  p_queue->space[p_queue->tail] = cData;
+  sFifoWorkp[p_queue->tail] = cData;//  p_queue->space[p_queue->tail] = cData;
   p_queue->tail = (p_queue->tail + 1) % p_queue->size;
   /* 这个时候一定队列满了 */
   if (p_queue->tail == p_queue->head)
@@ -44,16 +53,28 @@ Fiforing_push (struct STFIFORING *p_queue, char cData)
 
   return p_queue->tag;
 }
-
+int				// 中断态执行
+Fiforing_push(struct STFIFORING *p_queue, char cData)
+{
+	int iResult;
+	while (p_queue->Lock)
+	{
+		fprintf(stdout, "fifopush lock wait\r\n");
+	}
+	p_queue->Lock++;
+	iResult = Fiforing_push_io(p_queue, cData);
+	p_queue->Lock--;
+	return iResult;
+}
 
  /*出列 */
 int				// 普通态执行
-Fiforing_poll (struct STFIFORING *p_queue1, char *p_data)
+Fiforing_poll_io (struct STFIFORING *p_queue1, char *p_data)
 {
    struct STFIFORING stbak;
   struct STFIFORING *p_queue  = &stbak;
 
-//opt  USART_ITConfig (USART2, USART_IT_RXNE, DISABLE);
+
 
   memcpy ((char *) p_queue, (char *) p_queue1, sizeof (struct STFIFORING));
   print_ringq (p_queue);
@@ -64,7 +85,7 @@ Fiforing_poll (struct STFIFORING *p_queue1, char *p_data)
       return _fiforing_empty_;		//-1;
     }
 
-  *p_data = p_queue->space[p_queue->head];
+  *p_data = sFifoWorkp[p_queue->head]; //*p_data = p_queue->space[p_queue->head];
   p_queue->head = (p_queue->head + 1) % p_queue->size;
 
   /*这个时候一定队列空了 */
@@ -75,10 +96,23 @@ Fiforing_poll (struct STFIFORING *p_queue1, char *p_data)
 
   memcpy ((char *) p_queue1, (char *) p_queue, sizeof (struct STFIFORING));
 
-  //opt USART_ITConfig (USART2, USART_IT_RXNE, ENABLE);
+ 
   return _fiforing_normal_ ;//p_queue->tag;
 }
-
+int				// 普通态执行
+Fiforing_poll(struct STFIFORING *p_queue1, char *p_data)
+{
+	int iResult;
+	
+	while (p_queue1->Lock)
+	{
+		fprintf(stdout, "fifopop lock wait\r\n");
+	}
+	p_queue1->Lock++;
+	iResult = Fiforing_poll_io(p_queue1, p_data);
+	p_queue1->Lock--;
+	return iResult;
+}
 int
 rignq_GetData (struct STFIFORING *p_queue, char *p_data, int iGetno)
 {

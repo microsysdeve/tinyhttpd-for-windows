@@ -11,6 +11,7 @@ extern "C"
 */
   struct STFIFORING
   {
+	  volatile int  Lock;
     volatile int head;		/* 头部，出队列方向 */
     volatile int tail;		/* 尾部，入队列方向 */
     int size;			/* 队列总尺寸 */
@@ -32,6 +33,7 @@ extern "C"
   // extern int ringq_init ( struct STRINGGQ * p_queue);
 
   int Fiforing_init (struct STFIFORING *q_queue, char *sbuf, int buflen);
+  int Fiforing_datap_init(struct STFIFORING *p_queue, char *sbuf, int buflen);
   int Fiforing_free (struct STFIFORING *p_queue);
 
 
