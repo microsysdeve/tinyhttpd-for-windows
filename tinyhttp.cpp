@@ -39,11 +39,6 @@
 #pragma comment(lib, "wsock32.lib")
 #pragma warning(disable : 4267)
 
-#define ISspace(x) isspace((int)(x))
-#define SERVER_STRING "Server: tinyhttp /0.1.0\r\n"
-// -------------------------------------------------------------------------
-
-
 	
 struct SharedData
 {
@@ -61,7 +56,7 @@ enum  ENUMMODE
 		_ain_,
 		_bin_,
 };
-enum  ENUMMODE  enMode= _bin_;
+enum  ENUMMODE  enMode= _ain_;
 
 #define			_IsAin()			( _ain_ == enMode )
 #define			_IsBin()			( !(_IsAin()))
@@ -103,86 +98,7 @@ void stSharedData_init(struct SharedData *stp, enum  ENUMMODE entemp)
 }
 
 #define			debugprintf
-// -------------------------------------------------------------------------
-// 类名		: CTinyHttp
-// 功能		: 
-// 附注		: 
-// -------------------------------------------------------------------------
-class CTinyHttp
-{
-public:
-	typedef struct tagSocketContext
-	{
-		SOCKET socket_Client;
-		tagSocketContext() : socket_Client(-1) {}
-	} SOCKET_CONTEXT, *PSOCKET_CONTEXT;
 
-/**********************************************************************/  
-/* A request has caused a call to accept() on the server port to 
- * return.  Process the request appropriately. 
- * Parameters: the socket connected to the client */  
-/**********************************************************************/  
-
-
-/**********************************************************************/
-/* Print out an error message with perror() (for system errors; based
- * on value of errno, which indicates system call errors) and exit the
- * program indicating an error. */
-/**********************************************************************/
-void error_die(const char *sc)
-{
-	perror(sc);
-	exit(1);
-}  
-  
-
-/**********************************************************************/
-/* This function starts the process of listening for web connections
- * on a specified port.  If the port is 0, then dynamically allocate a
- * port and modify the original port variable to reflect the actual
- * port.
- * Parameters: pointer to variable containing the port to connect on
- * Returns: the socket */
-/**********************************************************************/
-SOCKET startup(u_short* port)
-{
-	SOCKET httpd = 0;
-	struct sockaddr_in name = {0};
-
-	httpd = socket(AF_INET, SOCK_STREAM, 0);
-	if (httpd == INVALID_SOCKET)
-	{
-		error_die("startup socket");
-	}
-	
-	name.sin_family = AF_INET;
-	name.sin_port = htons(*port);
-	name.sin_addr.s_addr = inet_addr("127.0.0.1");
-	if (bind(httpd, (struct sockaddr *)&name, sizeof(name)) < 0)  
-	{
-		error_die("startup bind");
-	}
-	
-	if (*port == 0)  /* if dynamically allocating a port */  
-	{
-		int namelen = sizeof(name);
-		if (getsockname(httpd, (struct sockaddr *)&name, &namelen) == -1)
-		{
-			error_die("getsockname");
-		}
-
-		*port = ntohs(name.sin_port);
-	}
-
-	if (listen(httpd, 5) < 0)
-	{
-		error_die("listen");
-	}
-
-	return httpd;
-}
-
-}; // End Class CTinyHttp
 
 
 int _tmain(int argc, _TCHAR* argv[])
