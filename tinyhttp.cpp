@@ -315,6 +315,13 @@ a1:
 				{
 					retVal = send(sClient, &cout, 1, 0);
 					fprintf(stdout, "%c chanel out  %d(0x%x)\r\n", _IsAin() ? 'a' : 'b', cout, cout);
+					if (retVal < 0)
+					{
+						closesocket(sServer);
+						closesocket(sClient);
+						WSACleanup();
+						goto a1;
+					}
 				}
 				else
 					retVal = SOCKET_ERROR + 1;
@@ -400,6 +407,26 @@ int _tmain(int argc, _TCHAR* argv[])
 	WSACleanup();
 	return 0;
 }
+
+
+
+
 #endif
+int			checktcp(int sock)
+{
+	struct tcp_info info;
+	int len = sizeof(info);
+	memset ( (char *)&info,0,sizeof(info))£»
+	getsockopt(sock, IPPROTO_TCP, TCP_INFO, &info, (socklen_t *)&len);
+	if ((info.tcpi_state == TCP_ESTABLISHED))
+		return SUCCESS; else
+		return  ERROR;
+}
+
+
+
+
+
+
 // -------------------------------------------------------------------------
 // $Log: $
